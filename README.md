@@ -11,8 +11,8 @@ AtomicChannels provides thread-safe, lock-free and task-free channel/queue for J
 ## Features
 
 - `AtomicChannel{T}`: fast lock-free multi-producer multi-consumer (MPMC) channel, implemented as a ring buffer with atomic operations to ensure thread safety.
-  - Faster than `Base.Channel`
-  - Base channel compatibility helpers (`isready`, `wait`, `fetch`, `empty!`, iteration)
+  - Faster than `Base.Channel`.
+  - Base channel compatibility helpers (`isready`, `wait`, `fetch`, `empty!`, iteration).
 - `ReusePool{T}`: reusable object pool built on top of `AtomicChannel`
 - Blocking and non-blocking APIs
 
