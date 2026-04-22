@@ -70,7 +70,7 @@ function benchmark_mpmc_pool_vs_channel(n_items::Int, capacity::Int, n_producers
     pool_ms = pool_elapsed / 1_000_000
     ratio = channel_elapsed / max(pool_elapsed, 1)
 
-    println("\n[benchmark] items=$n_items capacity=$capacity threads=$(nthreads()) workers=$n_producers")
+    println("\n[benchmark] items=$n_items capacity=$capacity threads=$(nthreads()) workers=$(n_producers+n_consumers)")
     println("[benchmark]     Channel              elapsed ms  $(round(channel_ms; digits=2))")
     println("[benchmark]     AtomicChannel        elapsed ms  $(round(pool_ms; digits=2))")
     println("[benchmark]     speedup (Channel/AtomicChannel)  $(round(ratio; digits=3))x ")
@@ -277,10 +277,12 @@ end
     end
 
     @testset "Channel vs AtomicChannel benchmark (multithreaded)" begin
-        n_workers = max(2, nthreads() )
+        n_workers = max(1, nthreads() ÷ 2)
 
-        benchmark_mpmc_pool_vs_channel(100_000, 256, n_workers, n_workers)
+        benchmark_mpmc_pool_vs_channel(100_000, 256, 2n_workers, 2n_workers)
+        benchmark_mpmc_pool_vs_channel(10_000, 4, 2n_workers, 2n_workers)
         
+        benchmark_mpmc_pool_vs_channel(100_000, 256, n_workers, n_workers)
         benchmark_mpmc_pool_vs_channel(10_000, 4, n_workers, n_workers)
     end
 end

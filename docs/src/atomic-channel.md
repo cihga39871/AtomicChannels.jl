@@ -48,5 +48,5 @@ AtomicChannel implements common Base channel-style utilities:
 
 ## Notes
 
-- `trytake!` uses `nothing` to mean "empty". If `T` can be `Nothing`, prefer blocking `take!` when ambiguity matters.
+- `trytake!` uses `nothing` to mean "empty". If item can be `nothing`, prefer blocking `take!` when ambiguity matters.
 - Internal ring indices are periodically wrapped to avoid long-running counter growth.

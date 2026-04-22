@@ -313,8 +313,13 @@ end
 
 @inline Base.isready(chnl::AtomicChannel{<:Any}) =  chnl.n_filled[] > 0
 @inline Base.isempty(chnl::AtomicChannel{<:Any}) = chnl.n_filled[] == 0
-@inline Base.isfull(chnl::AtomicChannel{<:Any}) = chnl.n_free[] == 0
 @inline Base.n_avail(chnl::AtomicChannel{<:Any}) = chnl.n_filled[]
+
+@static if isdefined(Base, :isfull)
+    @inline Base.isfull(chnl::AtomicChannel{<:Any}) = chnl.n_free[] == 0
+else
+    @inline isfull(chnl::AtomicChannel{<:Any}) = chnl.n_free[] == 0
+end
 
 @inline Base.lock(chnl::AtomicChannel{<:Any}) = nothing
 @inline Base.lock(f::Function, chnl::AtomicChannel{<:Any}) = f()

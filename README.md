@@ -6,14 +6,15 @@
 [![Coverage](https://codecov.io/gh/cihga39871/AtomicChannels.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/cihga39871/AtomicChannels.jl)
 [![PkgEval](https://JuliaCI.github.io/NanosoldierReports/pkgeval_badges/A/AtomicChannels.svg)](https://JuliaCI.github.io/NanosoldierReports/pkgeval_badges/A/AtomicChannels.html)
 
-AtomicChannels provides lock-free concurrent data structures for Julia.
+AtomicChannels provides thread-safe, lock-free and task-free channel/queue for Julia.
 
 ## Features
 
-- `AtomicChannel{T}`: bounded lock-free MPMC channel
+- `AtomicChannel{T}`: fast lock-free multi-producer multi-consumer (MPMC) channel, implemented as a ring buffer with atomic operations to ensure thread safety.
+  - Faster than `Base.Channel`
+  - Base channel compatibility helpers (`isready`, `wait`, `fetch`, `empty!`, iteration)
 - `ReusePool{T}`: reusable object pool built on top of `AtomicChannel`
 - Blocking and non-blocking APIs
-- Base channel compatibility helpers (`isready`, `wait`, `fetch`, `empty!`, iteration)
 
 ## Installation
 

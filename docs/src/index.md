@@ -6,7 +6,7 @@ CurrentModule = AtomicChannels
 
 AtomicChannels provides lock-free concurrent data structures for Julia:
 
-- `AtomicChannel`: bounded lock-free MPMC channel
+- `AtomicChannel`: fast multi-producer multi-consumer (MPMC) channel, implemented as a ring buffer with atomic operations to ensure thread safety
 - `ReusePool`: object pool built on top of `AtomicChannel`
 
 ## Installation
