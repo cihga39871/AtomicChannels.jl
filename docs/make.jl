@@ -14,10 +14,14 @@ makedocs(;
     ),
     pages=[
         "Home" => "index.md",
+        "AtomicChannel" => "atomic-channel.md",
+        "ReusePool" => "reuse-pool.md",
+        "API Reference" => "api.md",
     ],
 )
-
-deploydocs(;
-    repo="github.com/cihga39871/AtomicChannels.jl",
-    devbranch="main",
-)
+if haskey(ENV, "GITHUB_TOKEN")
+    deploydocs(;
+        repo="github.com/cihga39871/AtomicChannels.jl",
+        devbranch="main",
+    )
+end

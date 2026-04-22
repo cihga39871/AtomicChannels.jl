@@ -3,30 +3,27 @@
     ReusePool(create::Function, size::Int = 1, reset::Function = identity)
     ReusePool{T}(create::Function, size::Int = 1, reset::Function = identity)
 
-A reusable chnl of objects of type `T`. The chnl allows for efficient reuse of objects, reducing the overhead of creating and destroying objects frequently. The chnl is thread-safe and can be used in concurrent environments.
+A thread-safe and reusable pool of objects of type `T`. The pool allows for efficient reuse of objects, reducing the overhead of creating and destroying objects frequently. The pool is thread-safe and can be used in concurrent environments.
 
-Once a `ReusePool` is created, it comes with one instance of `T` created by the `create` function. The chnl can hold up to `size` instances of `T`. When an item is taken from the chnl, it is removed from the chnl until it is put back.
+Once a `ReusePool` is created, it comes with one instance of `T` created by the `create` function. The pool can hold up to `size` instances of `T`. When an item is taken from the pool, it is removed from the pool until it is put back.
 
 # Fields
 
 - `create::Function`: A function that creates a new instance of `T`. This function must be thread-safe and should return a new instance of `T` each time it is called.
 - `reset::Function`: A function that resets an instance of `T` to a clean state. Defaults to `identity`. This function must edit the item in place and should not return a new instance.
-- `size::Int`: The maximum size of the chnl.
-- `chnl::AtomicChannel{T}`: An atomic lock-free chnl that holds the reusable objects.
+- `chnl::AtomicChannel{T}`: An atomic lock-free channel that holds the reusable objects.
 
 # API
 
-- Blocking: `take!`, `put!(chnl, item)`
-- Non-blocking: `get!`, `release!(chnl, item)`, `fill!(chnl)`
+- Blocking: `take!(pool)`, `put!(pool, item)`
+- Non-blocking: `acquire!(pool)`, `release!(pool, item)`, `fill!(pool)`
 """
 struct ReusePool{T<:Any}
-    create::Base.Callable  # A function to create new instances of T
-    reset::Base.Callable   # A function to reset instances of T (defaults to identity)
-    size::Int         # The maximum size of the chnl
-    chnl::AtomicChannel{T}     # An atomic lock-free chnl to hold the reusable objects
-    function ReusePool{T}(create::Base.Callable, reset::Base.Callable, size::Int, chnl::AtomicChannel{T}) where T<:Any
-        @assert size > 0 "ReusePool: size must be greater than 0"
-        return new{T}(create, reset, size, chnl)
+    create::Base.Callable   # A function to create new instances of T
+    reset::Base.Callable    # A function to reset instances of T (defaults to identity)
+    chnl::AtomicChannel{T}  # An atomic lock-free channel to hold the reusable objects
+    function ReusePool{T}(create::Base.Callable, reset::Base.Callable, chnl::AtomicChannel{T}) where T<:Any
+        return new{T}(create, reset, chnl)
     end
 end
 
@@ -37,7 +34,7 @@ function ReusePool(create::Base.Callable, size::Int = 1, reset::Base.Callable = 
     T = typeof(data)
     chnl = AtomicChannel{T}(size)
     put!(chnl, data)
-    return ReusePool{T}(create, reset, size, chnl)
+    return ReusePool{T}(create, reset, chnl)
 end
 
 function ReusePool{T}(create::Base.Callable, size::Int = 1, reset::Base.Callable = identity) where T<:Any
@@ -46,7 +43,7 @@ function ReusePool{T}(create::Base.Callable, size::Int = 1, reset::Base.Callable
     @assert isa(data, T) "ReusePool: create must return type $T"
     chnl = AtomicChannel{T}(size)
     put!(chnl, data)
-    return ReusePool{T}(create, reset, size, chnl)
+    return ReusePool{T}(create, reset, chnl)
 end
 
 """
@@ -56,7 +53,7 @@ Takes an item from the chnl. If the chnl is empty, the function is blocked until
 
 See also: [`put!`](@ref) to reset and put an item back to the chnl (blocked when full).
 
-See also: [`get!`](@ref) and [`release!`](@ref) for non-blocking versions of take and put.
+See also: [`acquire!`](@ref) and [`release!`](@ref) for non-blocking versions of take and put.
 """
 function Base.take!(reuse_pool::ReusePool{<:Any})
     return take!(reuse_pool.chnl)
@@ -69,7 +66,7 @@ Puts an item back into the chnl after resetting it. If the chnl is full, the fun
 
 See also: [`take!`](@ref) to take an item from the chnl (blocked when empty).
 
-See also: [`get!`](@ref) and [`release!`](@ref) for non-blocking versions of take and put.
+See also: [`acquire!`](@ref) and [`release!`](@ref) for non-blocking versions of take and put.
 """
 function Base.put!(reuse_pool::ReusePool{T}, item::T) where T<:Any
     reuse_pool.reset(item)
@@ -94,17 +91,16 @@ end
 Releases an item back to the chnl without blocking. If the chnl is full, the item is discarded.
 Return `true` if the item was successfully released back to the chnl, or `false` if the item was discarded because the chnl is full.
 
-See also: [`get!`](@ref) to get an item from the chnl without blocking.
+See also: [`acquire!`](@ref) to get an item from the chnl without blocking.
 
 See also: [`take!`](@ref) and [`put!`](@ref) for blocking versions.
 """
 function release!(reuse_pool::ReusePool{T}, item::T) where T<:Any
-    reuse_pool.reset(item)
     return tryput!(reuse_pool.reset, reuse_pool.chnl, item)
 end
 
 """
-    get!(reuse_pool::ReusePool{T}) where T<:Any
+    acquire!(reuse_pool::ReusePool{T}) where T<:Any
 
 Gets an item from the chnl without blocking. If the chnl is empty, a new item is created using the `create` function.
 
@@ -112,7 +108,13 @@ See also: [`release!`](@ref) to release an item back to the chnl without blockin
 
 See also: [`take!`](@ref) and [`put!`](@ref) for blocking versions.
 """
-function Base.get!(reuse_pool::ReusePool{<:Any})
+function acquire!(reuse_pool::ReusePool{<:Any})
     item = trytake!(reuse_pool.chnl)
     return item === nothing ? reuse_pool.create() : item
+end
+
+function Base.show(io::IO, reuse_pool::ReusePool{T}) where T<:Any
+    filled = reuse_pool.chnl.n_filled[]
+    capacity = reuse_pool.chnl.capacity
+    print(io, "ReusePool{", T, "} with ", filled, "/", capacity, " items")
 end
