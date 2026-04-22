@@ -90,11 +90,7 @@ function AtomicChannel(capacity::Int)
     return AtomicChannel{Any}(capacity)
 end
 
-"""
-    _acquire_token!(counter::Threads.Atomic{Int})
-
-Acquire a token from the counter, blocking (spinning/yielding) until one is available.
-"""
+# Acquire a token from the counter, blocking (spinning/yielding) until one is available.
 @inline function _acquire_token!(counter::Threads.Atomic{Int})
     while true
         old = counter[]
@@ -109,11 +105,7 @@ Acquire a token from the counter, blocking (spinning/yielding) until one is avai
     end
 end
 
-"""
-    _try_acquire_token!(counter::Threads.Atomic{Int})
-
-Try to acquire a token from the counter, returning `true` if successful or `false` immediately when no tokens are available.
-"""
+# Try to acquire a token from the counter, returning `true` if successful or `false` immediately when no tokens are available.
 @inline function _try_acquire_token!(counter::Threads.Atomic{Int})
     old = counter[]
     while old > 0

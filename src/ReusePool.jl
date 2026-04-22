@@ -49,9 +49,9 @@ end
 """
     take!(reuse_pool::ReusePool{T}) where T<:Any
 
-Takes an item from the chnl. If the chnl is empty, the function is blocked until an item is available.
+Takes an item from the pool. If the pool is empty, the function is blocked until an item is available.
 
-See also: [`put!`](@ref) to reset and put an item back to the chnl (blocked when full).
+See also: [`put!`](@ref) to reset and put an item back to the pool (blocked when full).
 
 See also: [`acquire!`](@ref) and [`release!`](@ref) for non-blocking versions of take and put.
 """
@@ -62,9 +62,9 @@ end
 """
     put!(reuse_pool::ReusePool{T}, item::T) where T<:Any
 
-Puts an item back into the chnl after resetting it. If the chnl is full, the function is blocked until space is available.
+Puts an item back into the pool after resetting it. If the pool is full, the function is blocked until space is available.
 
-See also: [`take!`](@ref) to take an item from the chnl (blocked when empty).
+See also: [`take!`](@ref) to take an item from the pool (blocked when empty).
 
 See also: [`acquire!`](@ref) and [`release!`](@ref) for non-blocking versions of take and put.
 """
@@ -76,7 +76,7 @@ end
 """
     fill!(reuse_pool::ReusePool{T}) where T<:Any
 
-Fills the chnl to its maximum size by creating new items using the `create` function. This function requires locking to ensure thread safety when filling the chnl.
+Fills the pool to its maximum size by creating new items using the `create` function. This function requires locking to ensure thread safety when filling the pool.
 """
 function Base.fill!(reuse_pool::ReusePool{T}) where T<:Any
     while !isfull(reuse_pool.chnl)
@@ -88,10 +88,10 @@ end
 """
     release!(reuse_pool::ReusePool{T}, item::T) where T<:Any
 
-Releases an item back to the chnl without blocking. If the chnl is full, the item is discarded.
-Return `true` if the item was successfully released back to the chnl, or `false` if the item was discarded because the chnl is full.
+Releases an item back to the pool without blocking. If the pool is full, the item is discarded.
+Return `true` if the item was successfully released back to the pool, or `false` if the item was discarded because the pool is full.
 
-See also: [`acquire!`](@ref) to get an item from the chnl without blocking.
+See also: [`acquire!`](@ref) to get an item from the pool without blocking.
 
 See also: [`take!`](@ref) and [`put!`](@ref) for blocking versions.
 """
@@ -102,9 +102,9 @@ end
 """
     acquire!(reuse_pool::ReusePool{T}) where T<:Any
 
-Gets an item from the chnl without blocking. If the chnl is empty, a new item is created using the `create` function.
+Gets an item from the pool without blocking. If the pool is empty, a new item is created using the `create` function.
 
-See also: [`release!`](@ref) to release an item back to the chnl without blocking.
+See also: [`release!`](@ref) to release an item back to the pool without blocking.
 
 See also: [`take!`](@ref) and [`put!`](@ref) for blocking versions.
 """
