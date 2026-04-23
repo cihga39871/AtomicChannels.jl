@@ -76,7 +76,7 @@ Representative speedups from the latest `mpmc_result` files:
 
 Notes:
 
-- Most tested scenarios are faster than `Base.Channel`, especially when heavy task switch and multiple concurrent data operations.
+- Most tested scenarios are faster than `Base.Channel`; drastically faster with heavy task switch and multiple concurrent data operations.
 - Time: 2026-04-23 14:07:10; package version 1.0.0.
 - Use the raw reports below for full tables and environment details.
 
