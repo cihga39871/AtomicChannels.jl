@@ -92,12 +92,8 @@ function AtomicChannel(capacity::Int)
 end
 
 function get_spin_yield_masks()
-    if Threads.nthreads() == 1
-        # If we're only running with one thread, we can skip yielding entirely.
-        return 0x0000
-    else
-        return 0x03ff
-    end
+    # If we're only running with one thread, we can skip yielding entirely.
+    Threads.nthreads() == 1 ? 0x0000 : 0x03ff
 end
 
 # Acquire a token from the counter, blocking until one is available.

@@ -90,6 +90,17 @@ include("benchmark_mpmc.jl")
         @test occursin("AtomicChannel{Int64}(2/3)", s_short)
         @test occursin("AtomicChannel{Int64} with 2/3 items", s_plain)
         @test occursin("slots", s_plain)
+
+        cell = chnl.cells[1]
+        @test occursin("AtomicCell{Int64}(full, value=1)", sprint(show, cell))
+        cell.state[] = 0
+        @test occursin("AtomicCell{Int64}(empty)", sprint(show, cell))
+        cell.state[] = 2
+        @test occursin("AtomicCell{Int64}(busy)", sprint(show, cell))
+
+        chnl_large = AtomicChannel{Int}(9999)
+        s_plain = sprint(show, MIME"text/plain"(), chnl_large)
+        @test occursin("too many items", s_plain)
     end
 
     @testset "AtomicChannel ring-index wrap-around" begin
