@@ -60,13 +60,14 @@ struct AtomicChannel{T} <: AbstractChannel{T}
     n_filled::Threads.Atomic{Int}  # count of items currently in the chnl
     n_free::Threads.Atomic{Int}    # count of free slots currently in the chnl
     capacity::Int                  # total capacity of the chnl
-    cells::Vector{AtomicCell{T}}     # pre-allocated cells for storing items and their states
+    cells::Vector{AtomicCell{T}}   # pre-allocated cells for storing items and their states
+    yield_mask::UInt16             # bitmask for controlling how often to yield in spin loops, determined by capacity and thread count
 
     function AtomicChannel{T}(head::Threads.Atomic{Int}, tail::Threads.Atomic{Int}, n_filled::Threads.Atomic{Int},
                      n_free::Threads.Atomic{Int}, capacity::Int, cells::Vector{AtomicCell{T}}) where T<:Any
         @assert capacity > 0 "AtomicChannel: size must be greater than 0"
         @assert capacity < (typemax(Int) >> 2) "AtomicChannel: size must be less than `typemax(Int) >> 2`"  # restricted by the ring index implementation `_acquire_ring_index!`
-        return new{T}(head, tail, n_filled, n_free, capacity, cells)
+        return new{T}(head, tail, n_filled, n_free, capacity, cells, get_spin_yield_masks())
     end
 end
 
@@ -82,7 +83,7 @@ function AtomicChannel{T}(capacity::Int) where T<:Any
         Threads.Atomic{Int}(0),
         Threads.Atomic{Int}(capacity),
         capacity,
-        cells,
+        cells
     )
 end
 
@@ -90,18 +91,31 @@ function AtomicChannel(capacity::Int)
     return AtomicChannel{Any}(capacity)
 end
 
-# Acquire a token from the counter, blocking (spinning/yielding) until one is available.
-@inline function _acquire_token!(counter::Threads.Atomic{Int})
+function get_spin_yield_masks()
+    if Threads.nthreads() == 1
+        # If we're only running with one thread, we can skip yielding entirely.
+        return 0x0000
+    else
+        return 0x03ff
+    end
+end
+
+# Acquire a token from the counter, blocking until one is available.
+@inline function _acquire_token!(counter::Threads.Atomic{Int}, yield_mask::UInt16)
+    spins = 0
     while true
         old = counter[]
-        if old == 0
-            yield()
-            continue
-        end
-        if Threads.atomic_cas!(counter, old, old - 1) == old
+        if old > 0 && Threads.atomic_cas!(counter, old, old - 1) == old
             return
         end
-        yield()
+
+        # Spin-wait with occasional yielding to reduce contention. The yield_mask controls how often to yield; for example, a mask of 0x03ff means to yield every 1024 spins.
+        spins += 1
+        if (spins & yield_mask) == 0
+            yield()
+        else
+            ccall(:jl_cpu_pause, Cvoid, ())
+        end
     end
 end
 
@@ -149,7 +163,7 @@ See also: [`take!`](@ref) to take an item from the chnl (blocked when empty).
 See also: [`tryput!`](@ref) and [`trytake!`](@ref) for non-blocking versions of put and take.
 """
 function Base.put!(chnl::AtomicChannel{T}, item::T) where T<:Any
-    _acquire_token!(chnl.n_free)
+    _acquire_token!(chnl.n_free, chnl.yield_mask)
     slot = _acquire_ring_index!(chnl.tail, chnl.capacity)
     cell = @inbounds chnl.cells[slot]
 
@@ -225,7 +239,7 @@ See also: [`put!`](@ref) to put an item into the chnl (blocked when full).
 See also: [`tryput!`](@ref) and [`trytake!`](@ref) for non-blocking versions of put and take.
 """
 function Base.take!(chnl::AtomicChannel{T}) where T<:Any
-    _acquire_token!(chnl.n_filled)
+    _acquire_token!(chnl.n_filled, chnl.yield_mask)
     slot = _acquire_ring_index!(chnl.head, chnl.capacity)
     cell = @inbounds chnl.cells[slot]
 
@@ -277,7 +291,7 @@ end
 Waits for and returns (without removing) the first available item from the AtomicChannel.
 """
 function Base.fetch(chnl::AtomicChannel{T}) where T<:Any
-    _acquire_token!(chnl.n_filled)
+    _acquire_token!(chnl.n_filled, chnl.yield_mask)
     slot = chnl.head[] % chnl.capacity + 1
     cell = @inbounds chnl.cells[slot]
 
@@ -320,7 +334,7 @@ end
 Base.eltype(::Type{AtomicChannel{T}}) where {T} = T
 
 function Base.wait(chnl::AtomicChannel{T}) where T<:Any
-    _acquire_token!(chnl.n_filled)
+    _acquire_token!(chnl.n_filled, chnl.yield_mask)
     Threads.atomic_add!(chnl.n_filled, 1)
     return nothing
 end

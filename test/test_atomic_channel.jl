@@ -1,80 +1,5 @@
 
-function run_mpmc_benchmark(; n_items::Int, capacity::Int, n_producers::Int, n_consumers::Int, make_queue, put_func, take_func)
-    expected_sum = n_items * (n_items + 1) ÷ 2
-    consumed_sum = Atomic{Int}(0)
-    queue = make_queue(capacity)
-
-    per_producer = n_items ÷ n_producers
-    producer_rem = n_items % n_producers
-
-    per_consumer = n_items ÷ n_consumers
-    consumer_rem = n_items % n_consumers
-
-    t0 = time_ns()
-    @sync begin
-        start = 1
-        for i in 1:n_producers
-            count = per_producer + (i <= producer_rem ? 1 : 0)
-            first_item = start
-            last_item = start + count - 1
-            start += count
-
-            Threads.@spawn begin
-                for x in first_item:last_item
-                    put_func(queue, x)
-                end
-            end
-        end
-
-        for i in 1:n_consumers
-            count = per_consumer + (i <= consumer_rem ? 1 : 0)
-            Threads.@spawn begin
-                local_sum = 0
-                for _ in 1:count
-                    local_sum += take_func(queue)
-                end
-                atomic_add!(consumed_sum, local_sum)
-            end
-        end
-    end
-    elapsed_ns = time_ns() - t0
-
-    return elapsed_ns, consumed_sum[], expected_sum
-end
-
-function benchmark_mpmc_pool_vs_channel(n_items::Int, capacity::Int, n_producers::Int, n_consumers::Int)
-    channel_elapsed, channel_sum, channel_expected = run_mpmc_benchmark(
-        n_items = n_items,
-        capacity = capacity,
-        n_producers = n_producers,
-        n_consumers = n_consumers,
-        make_queue = cap -> Channel{Int}(cap),
-        put_func = put!,
-        take_func = take!,
-    )
-
-    pool_elapsed, pool_sum, pool_expected = run_mpmc_benchmark(
-        n_items = n_items,
-        capacity = capacity,
-        n_producers = n_producers,
-        n_consumers = n_consumers,
-        make_queue = cap -> AtomicChannel{Int}(cap),
-        put_func = put!,
-        take_func = take!,
-    )
-
-    @test channel_sum == channel_expected
-    @test pool_sum == pool_expected
-
-    channel_ms = channel_elapsed / 1_000_000
-    pool_ms = pool_elapsed / 1_000_000
-    ratio = channel_elapsed / max(pool_elapsed, 1)
-
-    println("\n[benchmark] items=$n_items capacity=$capacity threads=$(nthreads()) workers=$(n_producers+n_consumers)")
-    println("[benchmark]     Channel              elapsed ms  $(round(channel_ms; digits=2))")
-    println("[benchmark]     AtomicChannel        elapsed ms  $(round(pool_ms; digits=2))")
-    println("[benchmark]     speedup (Channel/AtomicChannel)  $(round(ratio; digits=3))x ")
-end
+include("benchmark_mpmc.jl")
 
 @testset "AtomicChannel" begin
     @testset "AtomicChannel basic FIFO" begin
@@ -190,6 +115,18 @@ end
         @test isempty(chnl)
     end
 
+    @testset "AtomicChannel ring-index large value reset" begin
+        capacity = 7
+        large_idx = Int(1) << (Sys.WORD_SIZE - 3)
+        idx = Atomic{Int}(large_idx)
+
+        slot = AtomicChannels._acquire_ring_index!(idx, capacity)
+
+        @test slot == (large_idx % capacity + 1)
+        @test 0 <= idx[] < capacity
+        @test idx[] == ((large_idx + 1) % capacity)
+    end
+
     @testset "AtomicChannel compatibility and utility API" begin
         chnl = AtomicChannel{Int}(2)
 
@@ -279,10 +216,14 @@ end
     @testset "Channel vs AtomicChannel benchmark (multithreaded)" begin
         n_workers = max(1, nthreads() ÷ 2)
 
-        benchmark_mpmc_pool_vs_channel(100_000, 256, 2n_workers, 2n_workers)
-        benchmark_mpmc_pool_vs_channel(10_000, 4, 2n_workers, 2n_workers)
+        md1 = benchmark_mpmc_pool_vs_channel(50_000, 256, 2n_workers, 2n_workers; markdown_output = false, raw_markdown = true)
+        md2 = benchmark_mpmc_pool_vs_channel(50_000, 4, 2n_workers, 2n_workers; markdown_output = false, raw_markdown = true, raw_mardown_header = false)
         
-        benchmark_mpmc_pool_vs_channel(100_000, 256, n_workers, n_workers)
-        benchmark_mpmc_pool_vs_channel(10_000, 4, n_workers, n_workers)
+        md3 = benchmark_mpmc_pool_vs_channel(50_000, 256, n_workers, n_workers; markdown_output = false, raw_markdown = true, raw_mardown_header = false)
+        md4 = benchmark_mpmc_pool_vs_channel(50_000, 4, n_workers, n_workers; markdown_output = false, raw_markdown = true, raw_mardown_header = false)
+
+        benchmark_md = Markdown.parse("$md1$md2$md3$md4")
+        show(stdout, MIME"text/plain"(), benchmark_md)
+        print(stdout, '\n')
     end
 end
