@@ -4,6 +4,11 @@ CurrentModule = AtomicChannels
 
 # Changelog
 
+## 1.0.0
+
+- Release.
+- Change docs.
+
 ## 1.0.0-DEV2
 
 ### Added

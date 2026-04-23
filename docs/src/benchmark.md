@@ -9,7 +9,7 @@ The benchmark compares `AtomicChannel` with `Base.Channel` using a multi-produce
 ## Method Summary
 
 - Benchmark target: put/take throughput with `items=50000`
-- Metric: speedup = `Channel/ms / AtomicChannel/ms`
+- Metric: speedup is computed as `Channel ÷ AtomicChannel` (elapsed time in ms).
 - Scenario groups:
   - Case 1: low-capacity contention (`capacity=4` or `1`)
   - Case 2: higher-capacity, lower data contention (`capacity=256`)

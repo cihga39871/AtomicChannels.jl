@@ -39,11 +39,11 @@ release!(pool, buf)
 
 ## Contents
 
-- [Changelog](changelog.md)
 - [Benchmark](benchmark.md)
 - [AtomicChannel](atomic-channel.md)
 - [ReusePool](reuse-pool.md)
 - [API Reference](api.md)
+- [Changelog](changelog.md)
 
 ```@index
 ```

@@ -58,13 +58,13 @@ The benchmark reports in [benchmark](benchmark) compare `AtomicChannel` with `Ba
 Method summary:
 
 - Benchmark target: MPMC put/take throughput (`items=50000`) for `AtomicChannel` vs `Base.Channel`.
-- Metric: speedup is computed as `Channel/ms ÷ AtomicChannel/ms`.
+- Metric: speedup is computed as `Channel ÷ AtomicChannel` (elapsed time in ms).
 - Three scenario groups are measured:
   - Case 1: low-capacity contention (`capacity=4` or `1`).
   - Case 2: higher-capacity, low data contention (`capacity=256`).
   - Case 3: varying worker/task counts at `capacity=256`.
 
-Representative speedups (Channel/ms divided by AtomicChannel/ms) from the latest `mpmc_result` files:
+Representative speedups from the latest `mpmc_result` files:
 
 | Julia | Case 1: 64 threads, 64 workers, cap=4 | Case 2: 32 threads, 32 workers, cap=256 | Case 3: 32 threads, 256 workers, cap=256 |
 |---|---:|---:|---:|
