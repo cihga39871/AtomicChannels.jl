@@ -76,7 +76,7 @@ end
 """
     fill!(reuse_pool::ReusePool{T}) where T<:Any
 
-Fills the pool to its maximum size by creating new items using the `create` function. This function requires locking to ensure thread safety when filling the pool.
+Fills the pool to its maximum size by creating new items using the `create` function.
 """
 function Base.fill!(reuse_pool::ReusePool{T}) where T<:Any
     while !isfull(reuse_pool.chnl)
