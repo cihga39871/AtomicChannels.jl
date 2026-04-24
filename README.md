@@ -11,7 +11,7 @@ AtomicChannels provides thread-safe, lock-free and task-free channel/queue for J
 ## Features
 
 - `AtomicChannel{T}`: fast lock-free multi-producer multi-consumer (MPMC) channel, implemented as a ring buffer with atomic operations to ensure thread safety.
-  - Faster than `Base.Channel`.
+  - Up to 20 times faster than `Base.Channel` in contention scenarios ([details in benchmark section](#Benchmark)).
   - Base channel compatibility helpers (`isready`, `wait`, `fetch`, `empty!`, iteration).
 - `ReusePool{T}`: reusable object pool built on top of `AtomicChannel`
 - Blocking and non-blocking APIs
@@ -27,12 +27,22 @@ Pkg.add("AtomicChannels")
 
 ### AtomicChannel
 
+The core usage of `AtomicChannel` is similar to a buffered `Base.Channel`. 
+
+- Creation: `AtomicChannel{eltype}(channel_size)`
+- Blocking operations:
+  - `put!(::AtomicChannel{T}, item::T)`: push item to channel
+  - `take!(::AtomicChannel{T})`: take the next available item
+- Non-blocking operations:
+  - `tryput!(::AtomicChannel{T}, item::T)`: returns `Bool`
+  - `trytake!(::AtomicChannel{T})`: returns item or `nothing`
+
 ```julia
 using AtomicChannels
 
-chnl = AtomicChannel{Int}(2)
+chnl = AtomicChannel{Int}(2)  # size=2, type=Int
 put!(chnl, 1)
-put!(chnl, 2)
+tryput!(chnl, 2)
 
 take!(chnl)          # 1
 trytake!(chnl)       # 2
@@ -40,6 +50,21 @@ trytake!(chnl)       # nothing
 ```
 
 ### ReusePool
+
+ReusePool is a lightweight object pool implemented on top of AtomicChannel. 
+
+The pool allows efficient reuse of objects, reducing the overhead of frequent object creation and destruction.
+
+- Constructor:
+  - `ReusePool{T}(create::Function, size::Int = 1, reset::Function = identity)`
+    - `create` has to be a thread-safe function that creates a new instance of `T`.
+    - `reset` (optional) should be a function to in-place edit an item that is put back in the pool.
+- Blocking operations:
+  - `take!(::ReusePool)`: take an object, blocks when empty
+  - `put!(::ReusePool, item)`: reset and return an object, blocks when full
+- Non-blocking operations:
+  - `acquire!(::ReusePool)`: take an object if available, otherwise create a new one
+  - `release!(ReusePool{T}, item::T)`: try to return an object to the pool, returns `true` on success
 
 ```julia
 using AtomicChannels
