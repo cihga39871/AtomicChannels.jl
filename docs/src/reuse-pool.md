@@ -12,20 +12,20 @@ The pool is thread-safe and can be used in concurrent environments.
 
 ## Create a pool
 
-```julia
-using AtomicChannels
-
-create_obj() = Dict{Symbol, Int}(:count => 0)
-reset_obj!(obj) = (obj[:count] = 0; obj)
-
-pool = ReusePool(create_obj, 8, reset_obj!)
-```
-
 Constructor `ReusePool{T}(create::Function, size::Int = 1, reset::Function = identity)`:
 
 - `create`: creates a new object
 - `size`: maximum number of retained objects
 - `reset`: in-place reset function used when putting/releasing objects back
+
+```julia
+using AtomicChannels
+
+create_obj() = Dict{Symbol, Int}(:count => 0)
+reset_obj!(obj) = (obj[:count] = 0)
+
+pool = ReusePool(create_obj, 8, reset_obj!)
+```
 
 ## Blocking API
 
