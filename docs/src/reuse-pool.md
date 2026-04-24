@@ -4,9 +4,11 @@ CurrentModule = AtomicChannels
 
 # ReusePool
 
-ReusePool is a lightweight object pool implemented on top of AtomicChannel.
+ReusePool is a lightweight object pool implemented on top of AtomicChannel. 
 
-It is useful when object construction is expensive and objects can be reset and reused safely.
+The pool allows efficient reuse of objects, reducing the overhead of frequent object creation and destruction.
+
+The pool is thread-safe and can be used in concurrent environments.
 
 ## Create a pool
 
@@ -19,7 +21,7 @@ reset_obj!(obj) = (obj[:count] = 0; obj)
 pool = ReusePool(create_obj, 8, reset_obj!)
 ```
 
-Constructor arguments:
+Constructor `ReusePool{T}(create::Function, size::Int = 1, reset::Function = identity)`:
 
 - `create`: creates a new object
 - `size`: maximum number of retained objects
@@ -46,8 +48,6 @@ buf[1] = 42
 ok = release!(pool, buf)
 ```
 
-## Display
+## Other functions
 
-`show(pool)` prints a compact occupancy summary, for example:
-
-- `ReusePool{Vector{Int64}} with 2/4 items`
+- `fill!(reuse_pool::ReusePool{T})`: fill the pool to its maximum size by creating new items using the `create` function.
