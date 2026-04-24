@@ -33,13 +33,13 @@ The core usage of `AtomicChannel` is similar to a buffered `Base.Channel`.
   - `put!(::AtomicChannel{T}, item::T)`: push item to channel
   - `take!(::AtomicChannel{T})`: take the next available item
 - Non-blocking operations:
-  - `tryput!(::AtomicChannel{T}, item::T)`: returns `Bool`
-  - `trytake!(::AtomicChannel{T})`: returns item or `nothing`
+  - `tryput!(::AtomicChannel{T}, item::T)`: return `::Bool`
+  - `trytake!(::AtomicChannel{T})`: return item or `nothing`
 
 ```julia
 using AtomicChannels
 
-chnl = AtomicChannel{Int}(2)  # size=2, type=Int
+chnl = AtomicChannel{Int}(2)  # size=2, data type=Int
 put!(chnl, 1)
 tryput!(chnl, 2)
 
