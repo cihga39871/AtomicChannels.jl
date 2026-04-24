@@ -41,10 +41,20 @@ z = trytake!(chnl)      # nothing
 
 AtomicChannel implements common Base channel-style utilities:
 
-- state and capacity: `isready`, `isempty`, `isfull`, `length`, `Base.n_avail`
-- lifecycle compatibility: `isopen`, `close`
-- waiting and peeking: `wait`, `fetch`
-- clearing and iteration: `empty!`, `iterate`, `collect`
+- Other non-blocking operations:
+  - `empty!(::AtomiChannel)`
+  - iterations like for loop, collect, etc.
+- Waiting and peeking:
+  - `wait(::AtomicChannel)`
+  - `fetch(::AtomicChannel)`: wait and peek the next item but not take it away from AtomicChannel.
+- State and capacity:
+  - `isready(::AtomicChannel)`
+  - `isempty(::AtomicChannel)`
+  - `isfull(::AtomicChannel)`
+  - `length(::AtomicChannel)`
+- Channel compatibility:
+  - `isopen(::AtomicChannel) = true`
+  - `close(::AtomicChannel) = nothing`, etc
 
 ## Notes
 
