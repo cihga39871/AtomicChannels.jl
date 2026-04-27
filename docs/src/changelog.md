@@ -4,6 +4,12 @@ CurrentModule = AtomicChannels
 
 # Changelog
 
+## 1.0.1
+
+- Change: all `yield()` are wrapped in try catch block now, in case an outer task sending InterruptException to the task that is in `yield()`.
+
+No performance degradation detected.
+
 ## 1.0.0
 
 - Release.
