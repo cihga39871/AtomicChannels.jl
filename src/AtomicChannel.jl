@@ -96,6 +96,13 @@ function get_spin_yield_masks()
     Threads.nthreads() == 1 ? 0x0000 : 0x03ff
 end
 
+function tryyield()
+    try
+        yield()
+    catch
+    end
+end
+
 # Acquire a token from the counter, blocking until one is available.
 @inline function _acquire_token!(counter::Threads.Atomic{Int}, yield_mask::UInt16)
     spins = 0
@@ -108,7 +115,7 @@ end
         # Spin-wait with occasional yielding to reduce contention. The yield_mask controls how often to yield; for example, a mask of 0x03ff means to yield every 1024 spins.
         spins += 1
         if (spins & yield_mask) == 0
-            yield()
+            tryyield()
         else
             ccall(:jl_cpu_pause, Cvoid, ())
         end
@@ -141,7 +148,7 @@ end
                 # Successfully reset the index or another thread has already done it
                 break
             end
-            yield()
+            tryyield()
         end
     end
     return pos % capacity + 1
@@ -166,7 +173,7 @@ function Base.put!(chnl::AtomicChannel{T}, item::T) where T<:Any
     while Threads.atomic_cas!(cell.state, CELL_EMPTY, CELL_BUSY) != CELL_EMPTY
         # Wait for the consumer to finish clearing this slot.
         # Threads.atomic_add!(COUNT_CELL_CONFLICT, 1)  # for testing contention scenarios
-        yield()
+        tryyield()
     end
 
     cell.value[] = item
@@ -194,7 +201,7 @@ function tryput!(chnl::AtomicChannel{T}, item::T) where T<:Any
     while Threads.atomic_cas!(cell.state, CELL_EMPTY, CELL_BUSY) != CELL_EMPTY
         # The slot for this tail ticket can lag briefly behind free token updates.
         # Threads.atomic_add!(COUNT_CELL_CONFLICT, 1)  # for testing contention scenarios
-        yield()
+        tryyield()
     end
 
     cell.value[] = item
@@ -212,7 +219,7 @@ function tryput!(reset_func::Base.Callable, chnl::AtomicChannel{T}, item::T) whe
     while Threads.atomic_cas!(cell.state, CELL_EMPTY, CELL_BUSY) != CELL_EMPTY
         # The slot for this tail ticket can lag briefly behind free token updates.
         # Threads.atomic_add!(COUNT_CELL_CONFLICT, 1)  # for testing contention scenarios
-        yield()
+        tryyield()
     end
 
     reset_func(item)
@@ -242,7 +249,7 @@ function Base.take!(chnl::AtomicChannel{T}) where T<:Any
     while Threads.atomic_cas!(cell.state, CELL_FILLED, CELL_BUSY) != CELL_FILLED
         # Wait for the producer to finish writing this slot.
         # Threads.atomic_add!(COUNT_CELL_CONFLICT, 1)  # for testing contention scenarios
-        yield()
+        tryyield()
     end
 
     item = cell.value[]
@@ -271,7 +278,7 @@ function trytake!(chnl::AtomicChannel{T}) where T<:Any
     while Threads.atomic_cas!(cell.state, CELL_FILLED, CELL_BUSY) != CELL_FILLED
         # The slot for this head ticket can lag briefly behind filled token updates.
         # Threads.atomic_add!(COUNT_CELL_CONFLICT, 1)  # for testing contention scenarios
-        yield()
+        tryyield()
     end
 
     item = cell.value[]
@@ -294,7 +301,7 @@ function Base.fetch(chnl::AtomicChannel{T}) where T<:Any
     while Threads.atomic_cas!(cell.state, CELL_FILLED, CELL_BUSY) != CELL_FILLED
         # Wait for the producer to finish writing this slot.
         # Threads.atomic_add!(COUNT_CELL_CONFLICT, 1)  # for testing contention scenarios
-        yield()
+        tryyield()
     end
 
     item = cell.value[]
@@ -351,7 +358,7 @@ function Base.iterate(chnl::AtomicChannel{T}, state=nothing) where T<:Any
     while Threads.atomic_cas!(cell.state, CELL_FILLED, CELL_BUSY) != CELL_FILLED
         # The slot for this head ticket can lag briefly behind filled token updates.
         # Threads.atomic_add!(COUNT_CELL_CONFLICT, 1)  # for testing contention scenarios
-        yield()
+        tryyield()
     end
 
     item = cell.value[]

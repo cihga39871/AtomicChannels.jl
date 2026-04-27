@@ -1,7 +1,7 @@
 name = "AtomicChannels"
 uuid = "44ab9252-467d-406b-8247-97505f0e2540"
 authors = ["Dr. Jiacheng Chuan <jiacheng_chuan@outlook.com> and contributors"]
-version = "1.0.0"
+version = "1.0.1"
 
 [compat]
 julia = "^1.8"
