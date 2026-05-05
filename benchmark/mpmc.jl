@@ -71,7 +71,7 @@ open(outfile, "w+") do f
     end
 
     println(f, "\n## Case 1: Low capacity to encourage contention\n")
-    println(f, "This benchmark evaluates the performance of **data operations (put and take)**, without task switching.\n")
+    println(f, "This benchmark evaluates the performance of **data operations (put and take)**, without task switching (when threads>1).\n")
     for threads in [64, 32, 16]
         run_benchmark_and_capture(io, threads, 4, 1)
     end

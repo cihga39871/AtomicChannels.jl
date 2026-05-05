@@ -81,6 +81,13 @@ function benchmark_mpmc_pool_vs_channel(n_items::Int, capacity::Int, n_producers
     if run_test
         @test channel_sum == channel_expected
         @test pool_sum == pool_expected
+    else
+        if channel_sum != channel_expected
+            @warn "Channel benchmark produced incorrect result: got $channel_sum, expected $channel_expected"
+        end
+        if pool_sum != pool_expected
+            @warn "AtomicChannel benchmark produced incorrect result: got $pool_sum, expected $pool_expected"
+        end
     end
     
     channel_ms = channel_elapsed / 1_000_000
