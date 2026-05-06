@@ -31,19 +31,16 @@ It supports concurrent producers and consumers with blocking and non-blocking AP
 # Examples
 ```jldoctest
 julia> chnl = AtomicChannel{Int}(2)
-AtomicChannel{Int64} with 0/2 items
+AtomicChannel{Int64, false} with 0/2 items
   head = 0, tail = 0, free = 2
-  slots = [..]
 
 julia> put!(chnl, 1)
-AtomicChannel{Int64} with 1/2 items
+AtomicChannel{Int64, false} with 1/2 items
   head = 0, tail = 1, free = 1
-  slots = [X.]
 
 julia> put!(chnl, 2)
-AtomicChannel{Int64} with 2/2 items
+AtomicChannel{Int64, false} with 2/2 items
   head = 0, tail = 2, free = 0
-  slots = [XX]
 
 julia> tryput!(chnl, 3)  # returns false since the chnl is full
 false
