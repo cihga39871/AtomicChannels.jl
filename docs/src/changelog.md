@@ -4,6 +4,12 @@ CurrentModule = AtomicChannels
 
 # Changelog
 
+## 1.0.2
+
+- Optim: fixes 100% CPU usage when waiting for taking and putting items.
+- Feat: single-threaded `AtomicChannel{<:Any, false}` and multi-threaded `AtomicChannel{<:Any, true}`.
+- Optim: speed of `_acquire_token!`.
+
 ## 1.0.1
 
 - Change: all `yield()` are wrapped in try catch block now, in case an outer task sending InterruptException to the task that is in `yield()`.

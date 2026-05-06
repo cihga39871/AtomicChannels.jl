@@ -11,7 +11,11 @@ AtomicChannel is a bounded, lock-free, multi-producer multi-consumer channel bui
 ```julia
 using AtomicChannels
 
-chnl = AtomicChannel{Int}(4)
+chnl = AtomicChannel{Int}(4)  # auto determine thread-safe using `Threads.nthreads() > 1`
+
+chnl_for_multi_threads = AtomicChannel{Int, true}(4)
+chnl_for_single_thread = AtomicChannel{Int, false}(4)
+
 ```
 
 The channel capacity is fixed. Producers block on `put!` when full, and consumers block on `take!` when empty.

@@ -3,11 +3,11 @@
 To run this benchmark, execute the following command in the terminal:
 
 ```bash
-julia +1.8 --project benchmark/mpmc.jl
-julia +1.9 --project benchmark/mpmc.jl
-julia +1.10 --project benchmark/mpmc.jl
-julia +1.11 --project benchmark/mpmc.jl
 julia +1.12 --project benchmark/mpmc.jl
+julia +1.11 --project benchmark/mpmc.jl
+julia +1.10 --project benchmark/mpmc.jl
+julia +1.9 --project benchmark/mpmc.jl
+julia +1.8 --project benchmark/mpmc.jl
 ```
 =#
 
@@ -51,7 +51,7 @@ function print_table(f::IO, io::IO)
     flush(f)
 end
 
-outfile = joinpath(proj, "benchmark", "mpmc_result__$(pkgversion(AtomicChannels))__$(VERSION).md")
+outfile = joinpath(proj, "benchmark", "mpmc_result__$(VERSION)__$(pkgversion(AtomicChannels)).md")
 
 open(outfile, "w+") do f
     io = IOBuffer()

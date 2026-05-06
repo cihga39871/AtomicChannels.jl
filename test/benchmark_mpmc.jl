@@ -119,7 +119,7 @@ function benchmark_stdout_markdown(capacity::Int; worker_ratio::Real = 2)
     n_workers = max(1, nthreads() / 2 * worker_ratio)
     n_workers = floor(Int, n_workers)
 
-    md1 = benchmark_mpmc_pool_vs_channel(50_000, capacity, n_workers, n_workers; markdown_output = false, raw_markdown = true)    
+    md1 = benchmark_mpmc_pool_vs_channel(100_000, capacity, n_workers, n_workers; markdown_output = false, raw_markdown = true)    
 
     println(stdout, md1)
 end

@@ -119,7 +119,21 @@ end
 @inline function tryyield()
     try
         yield()
-    catch
+    catch e
+        # check if Ctrl+C
+        if isa(e, Base.InterruptException)
+            rethrow()
+        end
+    end
+end
+@inline function trysleep()
+    try
+        sleep(0.001)
+    catch e
+        # check if Ctrl+C
+        if isa(e, Base.InterruptException)
+            rethrow()
+        end
     end
 end
 
@@ -133,12 +147,11 @@ end
         end
 
         # Spin-wait with occasional yielding to reduce contention. The yield_mask controls how often to yield; for example, a mask of 0x03ff means to yield every 1024 spins.
-        
         if (spins & 0x03ff) == 0
             tryyield()
         else
-            ccall(:jl_cpu_pause, Cvoid, ())
-            spins > 200000 && sleep(0.001)  # If we've been spinning for a long time, sleep briefly
+            spins > 1024    && ccall(:jl_cpu_pause, Cvoid, ())
+            spins > 1048576 && trysleep()  # If we've been spinning for a long time, sleep briefly
         end
         spins += 1
     end
@@ -151,7 +164,7 @@ end
             return
         end
         tryyield()
-        spins > 200000 && sleep(0.001)  # If we've been spinning for a long time, sleep briefly
+        spins > 1048576  && trysleep()  # If we've been spinning for a long time, sleep briefly
         spins += 1
     end
 end

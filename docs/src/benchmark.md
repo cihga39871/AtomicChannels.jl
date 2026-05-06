@@ -19,26 +19,25 @@ The benchmark compares `AtomicChannel` with `Base.Channel` using a multi-produce
 
 Representative speedups are shown below from the latest report for each Julia version.
 
-| Julia | Case 1: 64 threads, 64 workers, cap=4 | Case 2: 32 threads, 32 workers, cap=256 | Case 3: 32 threads, 256 workers, cap=256 |
+| Julia | Case 1: 64 threads, 64 workers, cap=4 | Case 2: 64 threads, 64 workers, cap=256 | Case 3: 32 threads, 256 workers, cap=256 |
 |---|---:|---:|---:|
-| 1.12.6 | 23.161x | 1.644x | 12.106x |
-| 1.11.9 | 12.383x | 2.399x | 1.811x |
-| 1.10.11 | 22.519x | 2.810x | 1.800x |
-| 1.9.4 | 9.931x | 3.556x | 1.849x |
-| 1.8.5 | 2.622x | 1.551x | 1.737x |
+| 1.12.6 | 33.8x | 3.023x | 27.638x |
+| 1.11.9 | 9.751x | 4.4x | 2.165x |
+| 1.10.11 | 13.103x | 4.876x | 2.288x |
+| 1.9.4 | 17.579x | 6.155x | 2.367x |
+| 1.8.5 | 6.311x | 1.994x | 1.709x |
 
-Notes:
+Conclusion:
 
-- Most tested scenarios are faster than `Base.Channel`.
-- Some scheduler/contention mixes can still fall below parity.
+- `AtomicChannel` are faster than `Base.Channel` in most test scenarios; drastically faster with heavy task switch and multiple concurrent data operations.
 
 ## Raw Reports
 
-- [Julia 1.12.6](https://github.com/cihga39871/AtomicChannels.jl/blob/main/benchmark/mpmc_result__1.0.0-DEV2__1.12.6.md)
-- [Julia 1.11.9](https://github.com/cihga39871/AtomicChannels.jl/blob/main/benchmark/mpmc_result__1.0.0-DEV2__1.11.9.md)
-- [Julia 1.10.11](https://github.com/cihga39871/AtomicChannels.jl/blob/main/benchmark/mpmc_result__1.0.0-DEV2__1.10.11.md)
-- [Julia 1.9.4](https://github.com/cihga39871/AtomicChannels.jl/blob/main/benchmark/mpmc_result__1.0.0-DEV2__1.9.4.md)
-- [Julia 1.8.5](https://github.com/cihga39871/AtomicChannels.jl/blob/main/benchmark/mpmc_result__1.0.0-DEV2__1.8.5.md)
+- [Julia 1.12.6](https://github.com/cihga39871/AtomicChannels.jl/blob/main/benchmark/mpmc_result__1.12.6.md)
+- [Julia 1.11.9](https://github.com/cihga39871/AtomicChannels.jl/blob/main/benchmark/mpmc_result__1.11.9.md)
+- [Julia 1.10.11](https://github.com/cihga39871/AtomicChannels.jl/blob/main/benchmark/mpmc_result__1.10.11.md)
+- [Julia 1.9.4](https://github.com/cihga39871/AtomicChannels.jl/blob/main/benchmark/mpmc_result__1.9.4.md)
+- [Julia 1.8.5](https://github.com/cihga39871/AtomicChannels.jl/blob/main/benchmark/mpmc_result__1.8.5.md)
 
 ## Reproduce
 
@@ -51,11 +50,11 @@ julia --project benchmark/mpmc.jl
 Or pin the Julia version with `juliaup`:
 
 ```bash
-julia +1.8 --project benchmark/mpmc.jl
-julia +1.9 --project benchmark/mpmc.jl
-julia +1.10 --project benchmark/mpmc.jl
-julia +1.11 --project benchmark/mpmc.jl
 julia +1.12 --project benchmark/mpmc.jl
+julia +1.11 --project benchmark/mpmc.jl
+julia +1.10 --project benchmark/mpmc.jl
+julia +1.9 --project benchmark/mpmc.jl
+julia +1.8 --project benchmark/mpmc.jl
 ```
 
 Each run generates a versioned report in `benchmark/`.

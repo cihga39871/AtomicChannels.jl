@@ -10,8 +10,8 @@ AtomicChannels provides thread-safe, lock-free and task-free channel/queue for J
 
 ## Features
 
-- `AtomicChannel{T}`: faster lock-free multi-producer multi-consumer (MPMC) channel.
-- Up to 20 times faster than `Base.Channel` in contention scenarios ([details in benchmark section](#Benchmark)).
+- `AtomicChannel`: faster lock-free multi-producer multi-consumer (MPMC) channel; a single-threaded variant is also provided.
+- Up to 30 times faster than `Base.Channel` in contention scenarios ([details in benchmark section](#Benchmark)).
 - `ReusePool{T}`: allows efficient reuse of objects, reducing the overhead of frequent object creation and destruction.
 - Blocking and non-blocking APIs.
 
@@ -28,7 +28,8 @@ Pkg.add("AtomicChannels")
 
 The core usage of `AtomicChannel` is similar to a buffered `Base.Channel`. 
 
-- Creation: `AtomicChannel{eltype}(channel_size)`
+- Constructor:
+  - `AtomicChannel{eltype}(channel_size)` (auto-choose thread-safe or -unsafe version)
 - Blocking operations:
   - `put!(::AtomicChannel{T}, item::T)`: push item to channel
   - `take!(::AtomicChannel{T})`: take the next available item
@@ -39,7 +40,7 @@ The core usage of `AtomicChannel` is similar to a buffered `Base.Channel`.
 ```julia
 using AtomicChannels
 
-chnl = AtomicChannel{Int}(2)  # size=2, data type=Int
+chnl = AtomicChannel{Int}(2)  # element type=Int, size=2
 put!(chnl, 1)
 tryput!(chnl, 2)
 
@@ -50,7 +51,7 @@ trytake!(chnl)       # nothing
 
 ### ReusePool
 
-ReusePool is a lightweight object pool implemented on top of AtomicChannel. 
+ReusePool is a lightweight object pool implemented on top of AtomicChannel.
 
 The pool allows efficient reuse of objects, reducing the overhead of frequent object creation and destruction.
 
@@ -79,9 +80,9 @@ release!(pool, buf)
 
 The benchmark reports in [benchmark](benchmark) compare `AtomicChannel` with `Base.Channel` on Linux (AMD Ryzen Threadripper PRO 7985WX, 128 cores).
 
-Method summary:
+**Method summary:**
 
-- Benchmark target: MPMC put/take throughput (`items=50000`) for `AtomicChannel` vs `Base.Channel`.
+- Benchmark target: MPMC put/take throughput (`items=100_000`) for `AtomicChannel` vs `Base.Channel`.
 - Metric: speedup is computed as `Channel ÷ AtomicChannel` (elapsed time in ms).
 - Three scenario groups are measured:
   - Case 1: low-capacity contention (`capacity=4` or `1`).
@@ -90,40 +91,38 @@ Method summary:
 
 Representative speedups from the latest `mpmc_result` files:
 
-| Julia | Case 1: 64 threads, 64 workers, cap=4 | Case 2: 32 threads, 32 workers, cap=256 | Case 3: 32 threads, 256 workers, cap=256 |
+| Julia | Case 1: 64 threads, 64 workers, cap=4 | Case 2: 64 threads, 64 workers, cap=256 | Case 3: 32 threads, 256 workers, cap=256 |
 |---|---:|---:|---:|
-| 1.12.6 | 23.161x | 1.644x | 12.106x |
-| 1.11.9 | 12.383x | 2.399x | 1.811x |
-| 1.10.11 | 22.519x | 2.810x | 1.800x |
-| 1.9.4 | 9.931x | 3.556x | 1.849x |
-| 1.8.5 | 2.622x | 1.551x | 1.737x |
+| 1.12.6 | 33.8x | 3.023x | 27.638x |
+| 1.11.9 | 9.751x | 4.4x | 2.165x |
+| 1.10.11 | 13.103x | 4.876x | 2.288x |
+| 1.9.4 | 17.579x | 6.155x | 2.367x |
+| 1.8.5 | 6.311x | 1.994x | 1.709x |
 
-Notes:
+**Conclusion:**
 
-- Most tested scenarios are faster than `Base.Channel`; drastically faster with heavy task switch and multiple concurrent data operations.
-- Time: 2026-04-23 14:07:10; package version 1.0.0.
-- Use the raw reports below for full tables and environment details.
+- `AtomicChannel` are faster than `Base.Channel` in most test scenarios; drastically faster with heavy task switch and multiple concurrent data operations.
 
-Raw benchmark reports:
+**Raw benchmark reports:**
 
-- [benchmark/mpmc_result__1.0.0-DEV2__1.12.6.md](benchmark/mpmc_result__1.0.0-DEV2__1.12.6.md)
-- [benchmark/mpmc_result__1.0.0-DEV2__1.11.9.md](benchmark/mpmc_result__1.0.0-DEV2__1.11.9.md)
-- [benchmark/mpmc_result__1.0.0-DEV2__1.10.11.md](benchmark/mpmc_result__1.0.0-DEV2__1.10.11.md)
-- [benchmark/mpmc_result__1.0.0-DEV2__1.9.4.md](benchmark/mpmc_result__1.0.0-DEV2__1.9.4.md)
-- [benchmark/mpmc_result__1.0.0-DEV2__1.8.5.md](benchmark/mpmc_result__1.0.0-DEV2__1.8.5.md)
+- [benchmark/mpmc_result__1.12.6.md](benchmark/mpmc_result__1.12.6.md)
+- [benchmark/mpmc_result__1.11.9.md](benchmark/mpmc_result__1.11.9.md)
+- [benchmark/mpmc_result__1.10.11.md](benchmark/mpmc_result__1.10.11.md)
+- [benchmark/mpmc_result__1.9.4.md](benchmark/mpmc_result__1.9.4.md)
+- [benchmark/mpmc_result__1.8.5.md](benchmark/mpmc_result__1.8.5.md)
 
 ### Reproduce Benchmark
 
-Run from the repository root:
+Run from the repository root, and pin the Julia version with `juliaup`:
 
 ```bash
 cd AtomicChannels.jl
 
-julia +1.8 --project benchmark/mpmc.jl
-julia +1.9 --project benchmark/mpmc.jl
-julia +1.10 --project benchmark/mpmc.jl
-julia +1.11 --project benchmark/mpmc.jl
 julia +1.12 --project benchmark/mpmc.jl
+julia +1.11 --project benchmark/mpmc.jl
+julia +1.10 --project benchmark/mpmc.jl
+julia +1.9 --project benchmark/mpmc.jl
+julia +1.8 --project benchmark/mpmc.jl
 ```
 
 Each run generates a report to the [benchmark](benchmark) directory.
@@ -132,12 +131,3 @@ Each run generates a report to the [benchmark](benchmark) directory.
 
 - Stable docs: https://cihga39871.github.io/AtomicChannels.jl/stable/
 - Dev docs: https://cihga39871.github.io/AtomicChannels.jl/dev/
-
-Build docs locally:
-
-```julia
-cd("docs")
-using Pkg
-Pkg.instantiate()
-include("make.jl")
-```
