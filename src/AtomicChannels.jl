@@ -1,5 +1,7 @@
 module AtomicChannels
 
+using Base.GC
+
 include("AtomicChannel.jl")
 export AtomicChannel, AtomicCell, tryput!, trytake!, get!, release!
 

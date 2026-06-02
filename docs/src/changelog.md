@@ -4,6 +4,10 @@ CurrentModule = AtomicChannels
 
 # Changelog
 
+## 1.0.3
+
+- Change: add `GC.@preserve` to all getters like `var[]`. This might be redundant and not necessary but just in case of segfault. It does not affect performance.
+
 ## 1.0.2
 
 - Optim: fixes 100% CPU usage when waiting for taking and putting items.

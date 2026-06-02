@@ -69,7 +69,7 @@ struct AtomicChannel{T, B} <: AbstractChannel{T}
 
         if !B
             for cell in cells
-                cell.state[] = CELL_NA
+                GC.@preserve cell cell.state[] = CELL_NA
             end
         end
         return new{T, B}(head, tail, n_filled, n_free, capacity, cells)
@@ -138,7 +138,7 @@ end
 @inline function _acquire_token!(::AtomicChannel{T, true}, counter::Threads.Atomic{Int}) where T<:Any
     spins = 1
     while true
-        old = counter[]
+        GC.@preserve counter old = counter[]
         if old > 0 && Threads.atomic_cas!(counter, old, old - 1) == old
             return
         end
@@ -156,8 +156,8 @@ end
 @inline function _acquire_token!(::AtomicChannel{T, false}, counter::Threads.Atomic{Int}) where T<:Any
     spins = 1
     while true
-        if counter[] > 0
-            counter[] -= 1
+        if (GC.@preserve counter counter[] > 0)
+            GC.@preserve counter counter[] -= 1
             return
         end
         tryyield()
@@ -168,18 +168,18 @@ end
 
 # Try to acquire a token from the counter, returning `true` if successful or `false` immediately when no tokens are available.
 @inline function _try_acquire_token!(::AtomicChannel{T, true}, counter::Threads.Atomic{Int}) where T<:Any
-    old = counter[]
+    GC.@preserve counter old = counter[]
     while old > 0
         if Threads.atomic_cas!(counter, old, old - 1) == old
             return true
         end
-        old = counter[]
+        GC.@preserve counter old = counter[]
     end
     return false
 end
 @inline function _try_acquire_token!(::AtomicChannel{T, false}, counter::Threads.Atomic{Int}) where T<:Any
-    if counter[] > 0
-        counter[] -= 1
+    if (GC.@preserve counter counter[] > 0)
+        GC.@preserve counter counter[] -= 1
         return true
     else
         return false
@@ -195,7 +195,7 @@ end
     if Core.Intrinsics.ctlz_int(pos) < 3
         # The index can grow without bound, so we reset it to the remainder after wrapping around.
         while true
-            old = idx[]
+            GC.@preserve idx old = idx[]
             new = old % capacity
             if Threads.atomic_cas!(idx, old, new) == old || Core.Intrinsics.ctlz_int(old) >= 3
                 # Successfully reset the index or another thread has already done it
@@ -207,10 +207,10 @@ end
     return pos % capacity + 1
 end
 @inline function _acquire_ring_index!(chnl::AtomicChannel{T, false}, idx::Threads.Atomic{Int}) where T<:Any
-    if idx[] < chnl.capacity
-        return idx[] += 1
+    if (GC.@preserve idx idx[] < chnl.capacity)
+        return GC.@preserve idx idx[] += 1
     else
-        idx[] = idx[] - chnl.capacity + 1
+        GC.@preserve idx idx[] = idx[] - chnl.capacity + 1
     end
 end
 
@@ -236,8 +236,10 @@ function Base.put!(chnl::AtomicChannel{T, true}, item::T) where T<:Any
         tryyield()
     end
 
-    cell.value[] = item
-    cell.state[] = CELL_FILLED
+    GC.@preserve cell begin
+        cell.value[] = item
+        cell.state[] = CELL_FILLED
+    end
     Threads.atomic_add!(chnl.n_filled, 1)
     return chnl
 end
@@ -246,9 +248,11 @@ function Base.put!(chnl::AtomicChannel{T, false}, item::T) where T<:Any
     slot = _acquire_ring_index!(chnl, chnl.tail)
     cell = @inbounds chnl.cells[slot]
 
-    cell.value[] = item
-    # cell.state[] = CELL_FILLED
-    chnl.n_filled[] += 1
+    GC.@preserve cell begin
+        cell.value[] = item
+        # cell.state[] = CELL_FILLED
+    end
+    GC.@preserve chnl chnl.n_filled[] += 1
     return chnl
 end
 
@@ -274,8 +278,10 @@ function tryput!(chnl::AtomicChannel{T, true}, item::T) where T<:Any
         tryyield()
     end
 
-    cell.value[] = item
-    cell.state[] = CELL_FILLED
+    GC.@preserve cell begin
+        cell.value[] = item
+        cell.state[] = CELL_FILLED
+    end
     Threads.atomic_add!(chnl.n_filled, 1)
     return true
 end
@@ -285,9 +291,11 @@ function tryput!(chnl::AtomicChannel{T, false}, item::T) where T<:Any
     slot = _acquire_ring_index!(chnl, chnl.tail)
     cell = @inbounds chnl.cells[slot]
 
-    cell.value[] = item
-    # cell.state[] = CELL_FILLED
-    chnl.n_filled[] += 1
+    GC.@preserve cell begin
+        cell.value[] = item
+        # cell.state[] = CELL_FILLED
+    end
+    GC.@preserve chnl chnl.n_filled[] += 1
     return true
 end
 
@@ -304,8 +312,10 @@ function tryput!(reset_func::Base.Callable, chnl::AtomicChannel{T, true}, item::
     end
 
     reset_func(item)
-    cell.value[] = item
-    cell.state[] = CELL_FILLED
+    GC.@preserve cell begin
+        cell.value[] = item
+        cell.state[] = CELL_FILLED
+    end
     Threads.atomic_add!(chnl.n_filled, 1)
     return true
 end
@@ -316,9 +326,11 @@ function tryput!(reset_func::Base.Callable, chnl::AtomicChannel{T, false}, item:
     cell = @inbounds chnl.cells[slot]
 
     reset_func(item)
-    cell.value[] = item
-    # cell.state[] = CELL_FILLED
-    chnl.n_filled[] += 1
+    GC.@preserve cell begin
+        cell.value[] = item
+        # cell.state[] = CELL_FILLED
+    end
+    GC.@preserve chnl chnl.n_filled[] += 1
     return true
 end
 
@@ -345,9 +357,11 @@ function Base.take!(chnl::AtomicChannel{T, true}) where T<:Any
         tryyield()
     end
 
-    item = cell.value[]
-    cell.value[] = nothing
-    cell.state[] = CELL_EMPTY
+    GC.@preserve cell begin
+        item = cell.value[]
+        cell.value[] = nothing
+        cell.state[] = CELL_EMPTY
+    end
     Threads.atomic_add!(chnl.n_free, 1)
     return item::T
 end
@@ -356,10 +370,12 @@ function Base.take!(chnl::AtomicChannel{T, false}) where T<:Any
     slot = _acquire_ring_index!(chnl, chnl.head)
     cell = @inbounds chnl.cells[slot]
 
+    GC.@preserve cell begin
     item = cell.value[]
     cell.value[] = nothing
     # cell.state[] = CELL_EMPTY
-    chnl.n_free[] += 1
+    end
+    GC.@preserve chnl chnl.n_free[] += 1
     return item::T
 end
 
@@ -385,10 +401,12 @@ function trytake!(chnl::AtomicChannel{T, true}) where T<:Any
         tryyield()
     end
 
-    item = cell.value[]
-    cell.value[] = nothing
-    cell.state[] = CELL_EMPTY
-    Threads.atomic_add!(chnl.n_free, 1)
+    GC.@preserve cell begin
+        item = cell.value[]
+        cell.value[] = nothing
+        cell.state[] = CELL_EMPTY
+    end
+    GC.@preserve chnl Threads.atomic_add!(chnl.n_free, 1)
     return item::T
 end
 function trytake!(chnl::AtomicChannel{T, false}) where T<:Any
@@ -397,10 +415,12 @@ function trytake!(chnl::AtomicChannel{T, false}) where T<:Any
     slot = _acquire_ring_index!(chnl, chnl.head)
     cell = @inbounds chnl.cells[slot]
 
-    item = cell.value[]
-    cell.value[] = nothing
-    # cell.state[] = CELL_EMPTY
-    chnl.n_free[] += 1
+    GC.@preserve cell begin
+        item = cell.value[]
+        cell.value[] = nothing
+        # cell.state[] = CELL_EMPTY
+    end
+    GC.@preserve chnl chnl.n_free[] += 1
     return item::T
 end
 
@@ -411,7 +431,7 @@ Waits for and returns (without removing) the first available item from the Atomi
 """
 function Base.fetch(chnl::AtomicChannel{T, true}) where T<:Any
     _acquire_token!(chnl, chnl.n_filled)
-    slot = chnl.head[] % chnl.capacity + 1
+    GC.@preserve chnl slot = chnl.head[] % chnl.capacity + 1
     cell = @inbounds chnl.cells[slot]
 
     while Threads.atomic_cas!(cell.state, CELL_FILLED, CELL_BUSY) != CELL_FILLED
@@ -420,18 +440,20 @@ function Base.fetch(chnl::AtomicChannel{T, true}) where T<:Any
         tryyield()
     end
 
-    item = cell.value[]
-    cell.state[] = CELL_FILLED  # set back to filled state without clearing the value
+    GC.@preserve cell begin
+        item = cell.value[]
+        cell.state[] = CELL_FILLED  # set back to filled state without clearing the value
+    end
     Threads.atomic_add!(chnl.n_filled, 1)  # restore the filled token since we're not actually taking the item
     return item::T
 end
 function Base.fetch(chnl::AtomicChannel{T, false}) where T<:Any
     _acquire_token!(chnl, chnl.n_filled)
-    slot = chnl.head[] % chnl.capacity + 1
+    GC.@preserve chnl slot = chnl.head[] % chnl.capacity + 1
     cell = @inbounds chnl.cells[slot]
 
-    item = cell.value[]
-    chnl.n_filled[] += 1  # restore the filled token since we're not actually taking the item
+    GC.@preserve cell item = cell.value[]
+    GC.@preserve chnl chnl.n_filled[] += 1  # restore the filled token since we're not actually taking the item
     return item::T
 end
 
@@ -445,14 +467,14 @@ end
 @inline Base.isbuffered(chnl::AtomicChannel{<:Any, <:Any}) = true
 @inline Base.check_channel_state(chnl::AtomicChannel{<:Any, <:Any}) = nothing
 
-@inline Base.isready(chnl::AtomicChannel{<:Any, <:Any}) =  chnl.n_filled[] > 0
-@inline Base.isempty(chnl::AtomicChannel{<:Any, <:Any}) = chnl.n_filled[] == 0
-@inline Base.n_avail(chnl::AtomicChannel{<:Any, <:Any}) = chnl.n_filled[]
+@inline Base.isready(chnl::AtomicChannel{<:Any, <:Any}) = GC.@preserve chnl chnl.n_filled[] > 0
+@inline Base.isempty(chnl::AtomicChannel{<:Any, <:Any}) = GC.@preserve chnl chnl.n_filled[] == 0
+@inline Base.n_avail(chnl::AtomicChannel{<:Any, <:Any}) = GC.@preserve chnl chnl.n_filled[]
 
 @static if isdefined(Base, :isfull)
-    @inline Base.isfull(chnl::AtomicChannel{<:Any, <:Any}) = chnl.n_free[] == 0
+    @inline Base.isfull(chnl::AtomicChannel{<:Any, <:Any}) = GC.@preserve chnl chnl.n_free[] == 0
 else
-    @inline isfull(chnl::AtomicChannel{<:Any, <:Any}) = chnl.n_free[] == 0
+    @inline isfull(chnl::AtomicChannel{<:Any, <:Any}) = GC.@preserve chnl chnl.n_free[] == 0
 end
 
 @inline Base.lock(chnl::AtomicChannel{<:Any, <:Any}) = nothing
@@ -468,7 +490,7 @@ function Base.wait(chnl::AtomicChannel{T, <:Any}) where T
 end
 
 function Base.empty!(chnl::AtomicChannel{T, <:Any}) where T
-    while chnl.n_filled[] > 0
+    while (GC.@preserve chnl chnl.n_filled[] > 0)
         trytake!(chnl)  # clear out all items
     end
     return chnl
@@ -486,9 +508,11 @@ function Base.iterate(chnl::AtomicChannel{T, true}, state=nothing) where T
         tryyield()
     end
 
-    item = cell.value[]
-    cell.value[] = nothing
-    cell.state[] = CELL_EMPTY
+    GC.@preserve cell begin
+        item = cell.value[]
+        cell.value[] = nothing
+        cell.state[] = CELL_EMPTY
+    end
     Threads.atomic_add!(chnl.n_free, 1)
     return item::T, nothing
 end
@@ -498,18 +522,22 @@ function Base.iterate(chnl::AtomicChannel{T, false}, state=nothing) where T<:Any
     slot = _acquire_ring_index!(chnl, chnl.head)
     cell = @inbounds chnl.cells[slot]
 
-    item = cell.value[]
-    cell.value[] = nothing
-    # cell.state[] = CELL_EMPTY
-    chnl.n_free[] += 1
+    GC.@preserve cell begin
+        item = cell.value[]
+        cell.value[] = nothing
+        # cell.state[] = CELL_EMPTY
+    end
+    GC.@preserve chnl chnl.n_free[] += 1
     return item::T, nothing
 end
 
 Base.IteratorSize(::Type{<:AtomicChannel}) = Base.SizeUnknown()
 
 function Base.show(io::IO, cell::AtomicCell{T}) where T
-    state = cell.state[]
-    value = cell.value[]
+    GC.@preserve cell begin
+        state = cell.state[]
+        value = cell.value[]
+    end
     if state == CELL_EMPTY
         print(io, "AtomicCell{", T, "}(empty)")
     elseif state == CELL_FILLED
@@ -522,32 +550,36 @@ function Base.show(io::IO, cell::AtomicCell{T}) where T
 end
 
 function Base.show(io::IO, chnl::AtomicChannel{T, B}) where T where B
-    filled = chnl.n_filled[]
+    GC.@preserve chnl filled = chnl.n_filled[]
     print(io, "AtomicChannel{", T, ", ", B, "}(", filled, "/", chnl.capacity, ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", chnl::AtomicChannel{T, B}) where T where B
-    filled = chnl.n_filled[]
-    free = chnl.n_free[]
+    GC.@preserve chnl begin
+        filled = chnl.n_filled[]
+        free = chnl.n_free[]
+    end
     lock(io)
     try
-        print(io, "AtomicChannel{", T, ", ", B, "} with ", filled, "/", chnl.capacity, " items")
-        print(io, "\n  head = ", chnl.head[], ", tail = ", chnl.tail[], ", free = ", free)
+        GC.@preserve chnl begin
+            print(io, "AtomicChannel{", T, ", ", B, "} with ", filled, "/", chnl.capacity, " items")
+            print(io, "\n  head = ", chnl.head[], ", tail = ", chnl.tail[], ", free = ", free)
 
-        if B && !get(io, :compact, false)
-            # print slots in one line
-            max_width = displaysize(io)[2]
-            max_slots_to_show = max(0, max_width - 12)  # leave space for the header info
-            print(io, "\n  slots = [")
-            if chnl.capacity > max_slots_to_show
-                print(io, " ... too many items ... ")
-            else
-                for i in 1:chnl.capacity
-                    state = @inbounds chnl.cells[i].state[]
-                    print(io, state == CELL_FILLED ? 'X' : '.')
+            if B && !get(io, :compact, false)
+                # print slots in one line
+                max_width = displaysize(io)[2]
+                max_slots_to_show = max(0, max_width - 12)  # leave space for the header info
+                print(io, "\n  slots = [")
+                if chnl.capacity > max_slots_to_show
+                    print(io, " ... too many items ... ")
+                else
+                    for i in 1:chnl.capacity
+                        state = @inbounds chnl.cells[i].state[]
+                        print(io, state == CELL_FILLED ? 'X' : '.')
+                    end
                 end
+                print(io, "]")
             end
-            print(io, "]")
         end
     finally
         unlock(io)
