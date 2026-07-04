@@ -123,9 +123,9 @@ end
         end
     end
 end
-@inline function trysleep()
+@inline function trysleep(sec::Real=0.001)
     try
-        sleep(0.001)
+        sleep(sec)
     catch e
         # check if Ctrl+C
         if isa(e, Base.InterruptException)
@@ -137,6 +137,7 @@ end
 # Acquire a token from the counter, blocking until one is available.
 @inline function _acquire_token!(::AtomicChannel{T, true}, counter::Threads.Atomic{Int}) where T<:Any
     spins = 1
+    sec = 0.001
     while true
         GC.@preserve counter old = counter[]
         if old > 0 && Threads.atomic_cas!(counter, old, old - 1) == old
@@ -148,20 +149,27 @@ end
             tryyield()
         else
             spins > 1024    && ccall(:jl_cpu_pause, Cvoid, ())
-            spins > 1048576 && trysleep()  # If we've been spinning for a long time, sleep briefly
+            if spins > 1048576
+                trysleep(sec)  # If we've been spinning for a long time, sleep briefly
+                sec = min(sec + 0.001, 0.1)  # Exponential backoff up to 100ms
+            end
         end
         spins += 1
     end
 end
 @inline function _acquire_token!(::AtomicChannel{T, false}, counter::Threads.Atomic{Int}) where T<:Any
     spins = 1
+    sec = 0.001
     while true
         if (GC.@preserve counter counter[] > 0)
             GC.@preserve counter counter[] -= 1
             return
         end
         tryyield()
-        spins > 1048576  && trysleep()  # If we've been spinning for a long time, sleep briefly
+        if spins > 1048576
+            trysleep(sec)  # If we've been spinning for a long time, sleep briefly
+            sec = min(sec + 0.001, 0.1)  # Exponential backoff up to 100ms
+        end
         spins += 1
     end
 end

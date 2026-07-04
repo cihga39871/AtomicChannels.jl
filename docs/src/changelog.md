@@ -4,6 +4,10 @@ CurrentModule = AtomicChannels
 
 # Changelog
 
+## 1.0.4
+
+- Optim: less CPU usage when idle (3% old vs 0% new) (long waiting).
+
 ## 1.0.3
 
 - Change: add `GC.@preserve` to all getters like `var[]`. This might be redundant and not necessary but just in case of segfault. It does not affect performance.

@@ -73,6 +73,10 @@ open(outfile, "w+") do f
     println(f, "\n## Case 1: Low capacity to encourage contention\n")
     println(f, "This benchmark evaluates the performance of **data operations (put and take)**, without task switching (when threads>1).\n")
     for threads in [64, 32, 16]
+        if threads > Sys.CPU_THREADS
+            @info "Skipping benchmark for $threads threads because the system has only $(Sys.CPU_THREADS) CPU threads."
+            continue
+        end
         run_benchmark_and_capture(io, threads, 4, 1)
     end
     for threads in [8, 4, 2, 1]
@@ -83,6 +87,10 @@ open(outfile, "w+") do f
     println(f, "\n## Case 2: Higher capacity with minimal contention\n")
     println(f, "This benchmark mimics a lowest contention scenario where the contention is only from **task switching**, not data operations. \n")
     for threads in [64, 32, 16, 8, 4, 2, 1]
+        if threads > Sys.CPU_THREADS
+            @info "Skipping benchmark for $threads threads because the system has only $(Sys.CPU_THREADS) CPU threads."
+            continue
+        end
         run_benchmark_and_capture(io, threads, 256, 1)
     end
     print_table(f, io)
@@ -90,7 +98,8 @@ open(outfile, "w+") do f
     println(f, "\n## Case 3: Varying worker (task) counts to mimic different levels of concurrency\n")
     println(f, "This benchmark mimics varying concurrency levels on both **data operations** and **task switching**.\n")
     for worker_ratio in [16, 8, 4, 2, 1, 0.5, 0.25]
-        run_benchmark_and_capture(io, 32, 256, worker_ratio)
+        t = min(32, Sys.CPU_THREADS)
+        run_benchmark_and_capture(io, t, 256, worker_ratio)
     end
     print_table(f, io)
 
